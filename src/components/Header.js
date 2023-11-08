@@ -1,15 +1,54 @@
-import React from "react"
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import React, { useEffect } from "react";
+import { auth } from "../utils/firebase";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { addUser, removeUser } from "../utils/userSlice";
+import { LOGO } from "../utils/constants";
 
 const Header = () => {
-  return (
-    <div className="absolute bg-gradient-to-b from-black z-10">
-      <img
-        className="w-52 ml-7 my-1"
-        src="https://cdn.cookielaw.org/logos/dd6b162f-1a32-456a-9cfe-897231c7763c/4345ea78-053c-46d2-b11e-09adaef973dc/Netflix_Logo_PMS.png"
-        alt="logo"
-      />
-    </div>
-  )
-}
+  const user = useSelector((store) => store.user);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const handleSignOut = () => {
+    signOut(auth)
+      .then(() => {})
+      .catch((error) => navigate("/error"));
+  };
 
-export default Header
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const { uid, email, displayName } = user;
+        dispatch(
+          addUser({
+            uid,
+            email,
+            displayName,
+          })
+        );
+        navigate("/browse");
+      } else {
+        dispatch(removeUser());
+        navigate("/");
+      }
+    });
+
+    return unsubscribe();
+  }, []);
+
+  return (
+    <div className="absolute w-screen bg-gradient-to-b from-black z-10 flex justify-between">
+      <img className="w-52 ml-7 my-1" src={LOGO} alt="logo" />
+      {user && (
+        <div className="p-8">
+          <button onClick={handleSignOut} className="bg-yellow-50">
+            Sign Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Header;

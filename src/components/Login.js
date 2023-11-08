@@ -1,37 +1,80 @@
-import { Link } from "react-router-dom"
-import Header from "./Header"
-import { useRef, useState } from "react"
-import { isValidEmail, isValidPassword } from "../utils/validate"
-import { AlertCircle } from "lucide-react"
+import { Link } from "react-router-dom";
+import { useRef, useState } from "react";
+import { isValidUser } from "../utils/validate";
+import { AlertCircle } from "lucide-react";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+
+import { addUser } from "../utils/userSlice";
+import Header from "./Header";
+import { auth } from "../utils/firebase";
+import { useDispatch } from "react-redux";
 
 const Login = () => {
-  const [isSignInForm, setIsSignInForm] = useState(true)
-  const [errorMessage, setErrorMessge] = useState("")
-  const email = useRef()
-  const password = useRef()
-  const username = useRef()
+  const dispath = useDispatch();
+  const [isSignInForm, setIsSignInForm] = useState(true);
+  const [errorMessage, setErrorMessge] = useState("");
+  const email = useRef();
+  const password = useRef();
+  const username = useRef();
 
   const toggleSignInForm = () => {
-    setIsSignInForm((prev) => !prev)
-  }
+    setIsSignInForm((prev) => !prev);
+  };
 
   const onSubmitHandler = (e) => {
-    e.preventDefault()
-    if (!isValidEmail(email.current.value)) {
-      return setErrorMessge("Please Enter Valid email address")
-    }
-    if (!isValidPassword(password.current.value)) {
-      console.log("password", password.current.value)
-      return setErrorMessge(
-        "Password must contain Uppercase lowercase special-character number and min length 8"
-      )
-    }
+    e.preventDefault();
+    const message = isValidUser(email.current.value, password.current.value);
     if (!isSignInForm && !username.current.value) {
-      return setErrorMessge("Please enter user name")
+      return setErrorMessge("Please enter user name");
     }
-    setErrorMessge(null)
-    if (errorMessage) return
-  }
+    if (message) return setErrorMessge(message);
+    if (!isSignInForm) {
+      createUserWithEmailAndPassword(
+        auth,
+        email.current.value,
+        password.current.value
+      )
+        .then((userCredential) => {
+          // Signed up
+          const user = userCredential.user;
+          updateProfile(user, { displayName: username.current.value }).then(
+            () => {
+              const { uid, email, displayName } = auth.currentUser;
+              dispath(addUser(uid, email, displayName));
+            }
+          );
+        })
+        .catch((error) => {
+          const errorCode = error.code;
+          const errorMessage = error.message;
+          console.log("Error", error);
+          setErrorMessge(errorCode + "-" + errorMessage);
+          // ..
+        });
+    } else {
+      signInWithEmailAndPassword(
+        auth,
+        email.current.value,
+        password.current.value
+      )
+        .then((userCredential) => {
+          // Signed in
+          // const { uid, email, displayName } = userCredential.user;
+          // dispath(addUser({ uid, email, displayName }));
+          // ...
+        })
+        .catch((error) => {
+          const errorCode = error.code;
+          const errorMessage = error.message;
+          console.log(error);
+          setErrorMessge(errorCode + "-" + errorMessage);
+        });
+    }
+  };
   return (
     <div>
       <Header />
@@ -86,7 +129,7 @@ const Login = () => {
         </p>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;
